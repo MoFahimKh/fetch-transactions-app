@@ -24,7 +24,7 @@ function App() {
 
   interface Node {
     address: string;
-    transactions: Transaction[];
+    transaction: Transaction;
   }
 
   useEffect(() => {
@@ -33,79 +33,60 @@ function App() {
     console.log(data);
   }, []);
 
-  const mapTransactions = (data: any): Node[] => {
-    const { addressIndex, tx, gas_used, height } = data;
+  const mapTransaction = (data: any): Node => {
+    const { tx, gas_used, height } = data;
     const { body } = tx;
     const { messages } = body;
   
-    const nodes: Node[] = [];
+    const message = messages[0];
+    const { validatorAddress, "@type": type, delegatorAddress } = message;
   
-    for (const address of addressIndex) {
-      const transactions: Transaction[] = [];
+    const transaction: Transaction = {
+      sender: validatorAddress,
+      receiver: delegatorAddress,
+      hash: data.hash, 
+      type,
+      gasLimit: tx.authInfo.fee.gasLimit,
+      amount: tx.authInfo.fee.amount,
+      gas_used,
+      height,
+    };
   
-      for (const message of messages) {
-        const { validatorAddress, "@type": type, delegatorAddress } = message;
+    const node: Node = {
+      address: transaction.receiver,
+      transaction,
+    };
   
-        const transaction: Transaction = {
-          sender: validatorAddress,
-          receiver: delegatorAddress,
-          hash: tx.hash,
-          type,
-          gasLimit: tx.authInfo.fee.gasLimit,
-          amount: tx.authInfo.fee.amount,
-          gas_used,
-          height,
-        };
-  
-        transactions.push(transaction);
-      }
-  
-      const node: Node = {
-        address,
-        transactions,
-      };
-  
-      nodes.push(node);
-    }
-  
-    return nodes;
+    return node;
   };
   
 
-  const nodes = fetchedData ? mapTransactions(fetchedData) : [];
-  console.log(nodes);
+  const node = fetchedData ? mapTransaction(fetchedData) : null;
+  console.log(node);
 
   return (
     <div className="App">
       <header className="App-header">
-        <div>
-          {nodes.map((node, index) => (
-            <div key={index}>
-              <h3>Address: {node.address}</h3>
-              <ul>
-                {node.transactions.map((transaction, index) => (
-                  <li key={index}>
-                    <p>Sender: {transaction.sender}</p>
-                    <p>Receiver: {transaction.receiver}</p>
-                    <p>Hash: {transaction.hash}</p>
-                    <p>Type: {transaction.type}</p>
-                    <p>Gas Limit: {transaction.gasLimit}</p>
-                    <p>Amount:</p>
-                    <ul>
-                      {transaction.amount.map((amt, index) => (
-                        <li key={index}>
-                          Amount: {amt.amount}, Denom: {amt.denom}
-                        </li>
-                      ))}
-                    </ul>
-                    <p>Gas Used: {transaction.gas_used}</p>
-                    <p>Height: {transaction.height}</p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
+        {node && (
+          <div>
+            <h3>Address: {node.address}</h3>
+            <p>Sender: {node.transaction.sender}</p>
+            <p>Receiver: {node.transaction.receiver}</p>
+            <p>Hash: {node.transaction.hash}</p>
+            <p>Type: {node.transaction.type}</p>
+            <p>Gas Limit: {node.transaction.gasLimit}</p>
+            <p>Amount:</p>
+            <ul>
+              {node.transaction.amount.map((amt, index) => (
+                <li key={index}>
+                  Amount: {amt.amount}, Denom: {amt.denom}
+                </li>
+              ))}
+            </ul>
+            <p>Gas Used: {node.transaction.gas_used}</p>
+            <p>Height: {node.transaction.height}</p>
+          </div>
+        )}
       </header>
     </div>
   );
