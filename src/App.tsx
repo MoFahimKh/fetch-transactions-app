@@ -50,7 +50,7 @@ const mapTransaction = (data: any) => {
         break;
       case "ibc.core.client.v1.MsgUpdateClient":
         senderAddress = signer;
-        receiverAddress = "goc proposals";
+        receiverAddress = "gov proposals";
         break;
       case "/ibc.applications.transfer.v1.MsgTransfer":
         senderAddress = sender;
