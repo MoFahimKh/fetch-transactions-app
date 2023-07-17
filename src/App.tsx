@@ -1,93 +1,100 @@
-import React, { useEffect, useState } from "react";
-import "./App.css";
+import { useEffect } from "react";
 import { data } from "./constants";
 
-function App() {
-  const [fetchedData, setFetchedData] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
+interface Amount {
+  amount: string;
+  denom: string;
+}
 
-  interface Amount {
-    amount: string;
-    denom: string;
-  }
+interface Transaction {
+  sender: string;
+  receiver: string;
+  hash: string;
+  type: string;
+  gasLimit: string;
+  amount: Amount[];
+  gas_used: string;
+  height: string;
+}
 
-  interface Transaction {
-    sender: string;
-    receiver: string;
-    hash: string;
-    type: string;
-    gasLimit: string;
-    amount: Amount[];
-    gas_used: string;
-    height: string;
-  }
+interface Node {
+  address: string;
+  transactions: Transaction[];
+}
 
-  interface Node {
-    address: string;
-    transaction: Transaction;
-  }
+let nodes: { [key: string]: Node } = {};
 
-  useEffect(() => {
-    // Simulating data fetch
-    setFetchedData(data);
-    console.log(data);
-  }, []);
+const mapTransaction = (data: any) => {
+  const { tx, gas_used, height } = data;
+  const { body } = tx;
+  const { messages } = body;
 
-  const mapTransaction = (data: any): Node => {
-    const { tx, gas_used, height } = data;
-    const { body } = tx;
-    const { messages } = body;
-  
-    const message = messages[0];
-    const { validatorAddress, "@type": type, delegatorAddress } = message;
-  
+  messages.forEach((message: any) => {
+    const {
+      "@type": type,
+      delegatorAddress,
+      validatorAddress,
+      sender,
+      receiver,
+      signer,
+    } = message;
+    let senderAddress: string;
+    let receiverAddress: string;
+
+    switch (type) {
+      case "/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward":
+      case "/cosmos.staking.v1beta1.MsgDelegate":
+      case "/cosmos.staking.v1beta1.MsgUnDelegate":
+        senderAddress = delegatorAddress;
+        receiverAddress = validatorAddress;
+        break;
+      case "ibc.core.client.v1.MsgUpdateClient":
+        senderAddress = signer;
+        receiverAddress = "goc proposals";
+        break;
+      case "/ibc.applications.transfer.v1.MsgTransfer":
+        senderAddress = sender;
+        receiverAddress = receiver;
+        break;
+      default:
+        return;
+    }
+
     const transaction: Transaction = {
-      sender: validatorAddress,
-      receiver: delegatorAddress,
-      hash: data.hash, 
+      sender: senderAddress,
+      receiver: receiverAddress,
+      hash: data.hash,
       type,
       gasLimit: tx.authInfo.fee.gasLimit,
       amount: tx.authInfo.fee.amount,
       gas_used,
       height,
     };
-  
-    const node: Node = {
-      address: transaction.receiver,
-      transaction,
-    };
-  
-    return node;
-  };
-  
+    if (nodes[transaction.receiver]) {
+      nodes[transaction.receiver].transactions.push(transaction);
+    } else {
+      nodes[transaction.receiver] = {
+        address: transaction.receiver,
+        transactions: [transaction],
+      };
+    }
+  });
+};
 
-  const node = fetchedData ? mapTransaction(fetchedData) : null;
-  console.log(node);
+const mapTransactions = (txns: any[]) => {
+  txns.forEach((txn) => mapTransaction(txn));
+};
 
+function App() {
+  useEffect(() => {
+    mapTransactions(data);
+    console.log("nodes:", nodes);
+  }, []);
   return (
-    <div className="App">
-      <header className="App-header">
-        {node && (
-          <div>
-            <h3>Address: {node.address}</h3>
-            <p>Sender: {node.transaction.sender}</p>
-            <p>Receiver: {node.transaction.receiver}</p>
-            <p>Hash: {node.transaction.hash}</p>
-            <p>Type: {node.transaction.type}</p>
-            <p>Gas Limit: {node.transaction.gasLimit}</p>
-            <p>Amount:</p>
-            <ul>
-              {node.transaction.amount.map((amt, index) => (
-                <li key={index}>
-                  Amount: {amt.amount}, Denom: {amt.denom}
-                </li>
-              ))}
-            </ul>
-            <p>Gas Used: {node.transaction.gas_used}</p>
-            <p>Height: {node.transaction.height}</p>
-          </div>
-        )}
-      </header>
+    <div>
+      {JSON.stringify(
+        nodes.evmosvaloper1sp9frqwep52chwavv3xd776myy8gyyvkv5uysl
+      )}
     </div>
   );
 }
