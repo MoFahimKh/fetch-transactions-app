@@ -40,7 +40,6 @@ const mapTransaction = (data: any) => {
     } = message;
     let senderAddress: string;
     let receiverAddress: string;
-
     switch (type) {
       case "/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward":
       case "/cosmos.staking.v1beta1.MsgDelegate":
@@ -70,8 +69,20 @@ const mapTransaction = (data: any) => {
       gas_used,
       height,
     };
+
     if (nodes[transaction.receiver]) {
-      nodes[transaction.receiver].transactions.push(transaction);
+      const existingTransactions = nodes[transaction.receiver].transactions;
+      const existingIndex = existingTransactions.findIndex(
+        (t) => t.hash === transaction.hash
+      );
+      if (existingIndex !== -1) {
+        const existingTransaction = existingTransactions[existingIndex];
+        if (gas_used > existingTransaction.gas_used) {
+          existingTransactions[existingIndex] = transaction;
+        }
+      } else {
+        existingTransactions.push(transaction);
+      }
     } else {
       nodes[transaction.receiver] = {
         address: transaction.receiver,
@@ -90,13 +101,8 @@ function App() {
     mapTransactions(data);
     console.log("nodes:", nodes);
   }, []);
-  return (
-    <div>
-      {JSON.stringify(
-        nodes.evmosvaloper1sp9frqwep52chwavv3xd776myy8gyyvkv5uysl
-      )}
-    </div>
-  );
+
+  return <div>{JSON.stringify(nodes)}</div>;
 }
 
 export default App;
